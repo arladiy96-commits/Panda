@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/panda_theme.dart';
+import 'panda_side_menu.dart';
 
 class _Dish {
   const _Dish({
@@ -126,6 +127,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _handleMenuEntry(PandaMenuEntry entry) {
+    switch (entry) {
+      case PandaMenuEntry.catalog:
+      case PandaMenuEntry.promotions:
+        setState(() => _tab = 0);
+        return;
+      case PandaMenuEntry.profile:
+        setState(() => _tab = 1);
+        return;
+      case PandaMenuEntry.cart:
+        setState(() => _tab = 3);
+        return;
+      default:
+        // Sections without a screen are visual placeholders for now.
+        const labels = <PandaMenuEntry, String>{
+          PandaMenuEntry.about: 'О нас',
+          PandaMenuEntry.orders: 'История заказов',
+          PandaMenuEntry.messages: 'Сообщения',
+          PandaMenuEntry.review: 'Написать отзыв',
+          PandaMenuEntry.telegram: 'Мы в Telegram',
+          PandaMenuEntry.instagram: 'Мы в Instagram',
+          PandaMenuEntry.vacancies: 'Вакансии',
+          PandaMenuEntry.offer: 'Публичный договор оферты',
+          PandaMenuEntry.privacy: 'Политика конфиденциальности',
+        };
+        final label = labels[entry];
+        if (label != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$label — экран добавим следующим этапом'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -135,65 +173,62 @@ class _HomeScreenState extends State<HomeScreen> {
         systemNavigationBarColor: PandaColors.background,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
-      child: Scaffold(
-        backgroundColor: PandaColors.background,
-        drawer: _PandaDrawer(
-          onSelect: (tab) {
-            Navigator.pop(context);
-            setState(() => _tab = tab);
-          },
-        ),
-        appBar: AppBar(
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          toolbarHeight: 58,
+      child: PandaSideMenu(
+        onSelect: _handleMenuEntry,
+        child: Scaffold(
           backgroundColor: PandaColors.background,
-          title: const Text(
-            'Panda',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-          ),
-          leading: Builder(
-            builder: (context) => Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.menu_rounded, size: 27),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 4,
-                  child: Container(
-                    width: 15,
-                    height: 15,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: PandaColors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Text('5', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+          appBar: AppBar(
+            scrolledUnderElevation: 0,
+            centerTitle: true,
+            toolbarHeight: 58,
+            backgroundColor: PandaColors.background,
+            title: const Text(
+              'Panda',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+            ),
+            leading: Builder(
+              builder: (context) => Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.menu_rounded, size: 27),
+                    onPressed: () => PandaSideMenu.maybeOf(context)?.open(),
                   ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            IconButton(
-              onPressed: () => showSearch<String>(
-                context: context,
-                delegate: _PandaSearchDelegate(),
+                  Positioned(
+                    right: 8,
+                    top: 4,
+                    child: Container(
+                      width: 15,
+                      height: 15,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: PandaColors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Text('5', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
               ),
-              icon: const Icon(Icons.search, size: 28),
             ),
-            const SizedBox(width: 8),
-          ],
+            actions: [
+              IconButton(
+                onPressed: () => showSearch<String>(
+                  context: context,
+                  delegate: _PandaSearchDelegate(),
+                ),
+                icon: const Icon(Icons.search, size: 28),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          body: switch (_tab) {
+            0 => _catalog(),
+            1 => _profile(),
+            2 => _favoritesScreen(),
+            _ => _cart(),
+          },
+          bottomNavigationBar: _bottomBar(),
         ),
-        body: switch (_tab) {
-          0 => _catalog(),
-          1 => _profile(),
-          2 => _favoritesScreen(),
-          _ => _cart(),
-        },
-        bottomNavigationBar: _bottomBar(),
       ),
     );
   }
@@ -637,49 +672,6 @@ class _DishSheetState extends State<_DishSheet> {
       ),
     );
   }
-}
-
-class _PandaDrawer extends StatelessWidget {
-  const _PandaDrawer({required this.onSelect});
-
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      backgroundColor: PandaColors.background,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 18),
-              child: Text('Panda', style: TextStyle(fontSize: 25, fontWeight: FontWeight.w700)),
-            ),
-            const Divider(color: Colors.white12),
-            _tile(Icons.account_circle_outlined, 'Профиль', () => onSelect(1)),
-            _tile(Icons.shopping_bag_outlined, 'Корзина', () => onSelect(3)),
-            _tile(Icons.favorite_outline, 'Любимые', () => onSelect(2)),
-            _tile(Icons.receipt_long_outlined, 'История заказов', () => onSelect(1)),
-            _tile(Icons.campaign_outlined, 'Акции', () => onSelect(0)),
-            _tile(Icons.notifications_outlined, 'Сообщения', () => onSelect(1)),
-            _tile(Icons.language, 'Язык', () => Navigator.pop(context)),
-            const Spacer(),
-            const Padding(
-              padding: EdgeInsets.all(18),
-              child: Text('Визуальный прототип · 0.1', style: TextStyle(color: Colors.white38, fontSize: 11)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _tile(IconData icon, String title, VoidCallback action) => ListTile(
-        leading: Icon(icon, color: Colors.white70),
-        title: Text(title, style: const TextStyle(fontSize: 15)),
-        onTap: action,
-      );
 }
 
 class _PandaSearchDelegate extends SearchDelegate<String> {
