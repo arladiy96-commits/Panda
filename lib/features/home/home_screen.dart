@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show PointerCancelEvent, PointerDownEvent, PointerMoveEvent, PointerUpEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -307,14 +308,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     scrollDirection: Axis.horizontal,
                     itemCount: _promos.length,
                     separatorBuilder: (context, index) => const SizedBox(width: 6),
-                    itemBuilder: (context, index) => ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        _promos[index],
-                        width: 112,
-                        height: 146,
-                        fit: BoxFit.cover,
-                      ),
+                    itemBuilder: (context, index) => _PressablePromoCard(
+                      assetPath: _promos[index],
                     ),
                   ),
                 ),
@@ -699,6 +694,92 @@ class _PandaSearchDelegate extends SearchDelegate<String> {
     final items = _dishes.where((item) => item.name.toLowerCase().contains(query.toLowerCase())).toList();
     return ListView(
       children: items.map((item) => ListTile(title: Text(item.name), subtitle: Text('${item.price} ₸'))).toList(),
+    );
+  }
+}
+
+/// A subtle press response for the horizontal promotions strip.
+///
+/// Listener observes pointer events without competing with the surrounding
+/// ListView's horizontal drag recognizer. As soon as a swipe is detected, the
+/// pressed banner returns to its normal size and scrolling continues freely.
+class _PressablePromoCard extends StatefulWidget {
+  const _PressablePromoCard({required this.assetPath});
+
+  final String assetPath;
+
+  @override
+  State<_PressablePromoCard> createState() => _PressablePromoCardState();
+}
+
+class _PressablePromoCardState extends State<_PressablePromoCard> {
+  static const double _pressedScale = 0.97;
+  static const double _swipeThreshold = 12;
+
+  int? _activePointer;
+  Offset? _downPosition;
+  bool _pressed = false;
+
+  void _handleDown(PointerDownEvent event) {
+    if (_activePointer != null) return;
+    _activePointer = event.pointer;
+    _downPosition = event.position;
+    setState(() => _pressed = true);
+  }
+
+  void _handleMove(PointerMoveEvent event) {
+    if (event.pointer != _activePointer || !_pressed) return;
+    final start = _downPosition;
+    if (start != null && (event.position - start).distance >= _swipeThreshold) {
+      _setReleased();
+    }
+  }
+
+  void _handleUp(PointerUpEvent event) {
+    if (event.pointer != _activePointer) return;
+    _activePointer = null;
+    _downPosition = null;
+    _setReleased();
+  }
+
+  void _handleCancel(PointerCancelEvent event) {
+    if (event.pointer != _activePointer) return;
+    _activePointer = null;
+    _downPosition = null;
+    _setReleased();
+  }
+
+  void _setReleased() {
+    if (_pressed) setState(() => _pressed = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: _handleDown,
+      onPointerMove: _handleMove,
+      onPointerUp: _handleUp,
+      onPointerCancel: _handleCancel,
+      child: SizedBox(
+        width: 112,
+        height: 146,
+        child: AnimatedScale(
+          scale: _pressed ? _pressedScale : 1.0,
+          duration: Duration(milliseconds: _pressed ? 115 : 170),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.center,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(
+              widget.assetPath,
+              width: 112,
+              height: 146,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
