@@ -1,0 +1,89 @@
+name: Bootstrap Flutter
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    name: Create Flutter project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create project if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f pubspec.yaml ]; then
+            flutter create \
+              --project-name panda_flutter \
+              --org com.example \
+              --platforms android \
+              .
+          else
+            echo 'pubspec.yaml already exists: project creation skipped.'
+          fi
+
+      - name: Create folders for upcoming screens
+        shell: bash
+        run: |
+          set -euo pipefail
+          folders=(
+            lib/app
+            lib/core/theme
+            lib/core/widgets
+            lib/core/routing
+            lib/features/splash
+            lib/features/home
+            lib/features/catalog
+            lib/features/product
+            lib/features/cart
+            lib/features/profile
+            lib/features/favorites
+            lib/features/orders
+            lib/features/branches
+            lib/features/menu
+            assets/images
+            assets/icons
+            assets/fonts
+            assets/videos
+          )
+          for folder in "${folders[@]}"; do
+            mkdir -p "$folder"
+            touch "$folder/.gitkeep"
+          done
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Commit generated project and folders
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Bootstrap Flutter Android project'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
